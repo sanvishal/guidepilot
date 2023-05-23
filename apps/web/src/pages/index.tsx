@@ -1,6 +1,7 @@
 import Head from "next/head"
 import { ArrowRight } from "lucide-react"
-import { Button } from "ui/Button"
+
+import { Button } from "@guidepilot/ui/Button"
 
 export default function Home() {
   return (
