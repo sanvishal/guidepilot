@@ -31,6 +31,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<AuthContext["user"]>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+
   const { toast } = useToast()
 
   const handleUnauthorized = () => {
@@ -39,6 +40,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       description: "login to continue...",
       variant: "destructive",
     })
+
     router.push("/login")
   }
 
@@ -56,7 +58,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
     }
 
-    if (!user) {
+    if (!user && !["/login", "/signup", "/"].includes(router.pathname)) {
       handleSession()
     }
   }, [])
