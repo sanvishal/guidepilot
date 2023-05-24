@@ -14,7 +14,7 @@ export const Navbar = () => {
   }
 
   return (
-    <nav className="flex h-20 w-full items-center justify-center py-2">
+    <nav className="flex h-16 w-full items-center justify-center py-2 md:h-20">
       <div className="flex h-full w-full items-center justify-between rounded-md">
         <div className="flex items-center space-x-2">
           <img

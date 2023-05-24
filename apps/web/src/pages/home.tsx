@@ -11,7 +11,7 @@ export default function Home() {
       <Head>
         <title>GuidePilot • Home</title>
       </Head>
-      <div className="md:container md:mx-auto">
+      <div className="px-3 md:container md:mx-auto">
         <Navbar />
         Welcome {user?.name}
       </div>

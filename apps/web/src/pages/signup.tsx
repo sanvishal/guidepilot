@@ -142,11 +142,13 @@ export default function SignUp() {
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Password</FormLabel>
+                <FormLabel className="flex justify-between">
+                  Password
+                  <FormDescription>minimum 8 characters</FormDescription>
+                </FormLabel>
                 <FormControl>
                   <Input placeholder="a password" icon={<Key />} {...field} />
                 </FormControl>
-                <FormDescription>minimum 8 characters</FormDescription>
               </FormItem>
             )}
           />
@@ -183,7 +185,7 @@ export default function SignUp() {
           </Button>
         </form>
         <div className="flex flex-col items-center">
-          <div className="text-muted-foreground my-4">or</div>
+          <div className="text-muted-foreground my-2">or</div>
           <Link href="/login" passHref>
             <Button variant="outline" size="sm">
               Login
