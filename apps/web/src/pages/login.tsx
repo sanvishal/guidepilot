@@ -74,7 +74,7 @@ export default function Login() {
       </Head>
       <div className="mb-8 text-center">
         <img
-          src="logo.png"
+          src="/logo.png"
           width="50px"
           height="50px"
           alt="logo of guidepilot"

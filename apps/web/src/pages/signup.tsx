@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Head from "next/head"
 import Link from "next/link"
 import { useRouter } from "next/router"
@@ -19,7 +19,7 @@ import {
   Input,
 } from "@guidepilot/ui"
 import { useToast } from "@guidepilot/ui/lib/useToast"
-import { account } from "@/lib/appwrite"
+import { COLLECTION, account, db, dbConfig } from "@/lib/appwrite"
 import { CenterPageWrapper } from "@/components/CenterPageWrapper"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -93,7 +93,7 @@ export default function SignUp() {
       </Head>
       <div className="mb-8 text-center">
         <img
-          src="logo.png"
+          src="/logo.png"
           width="50px"
           height="50px"
           alt="logo of guidepilot"
@@ -142,7 +142,7 @@ export default function SignUp() {
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="flex justify-between">
+                <FormLabel className="flex items-center justify-between">
                   Password
                   <FormDescription>minimum 8 characters</FormDescription>
                 </FormLabel>
