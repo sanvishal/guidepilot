@@ -179,7 +179,7 @@ export const EditableDynamicImageContent = forwardRef<
           dragElastic={0.1}
           dragMomentum={false}
           className={cn(
-            "border-foreground absolute flex border-spacing-2 items-center justify-center rounded-full border-2 border-dashed bg-slate-300 shadow-md",
+            "border-foreground absolute z-50 flex border-spacing-2 items-center justify-center rounded-full border-2 border-dashed bg-slate-300 shadow-md",
             isDragging
               ? "cursor-grabbing bg-opacity-40"
               : "cursor-grab bg-opacity-50"

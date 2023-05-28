@@ -1,3 +1,5 @@
+import { JSONContent } from "@tiptap/react"
+
 export type Guide = {
   id: string
   userId: string
@@ -32,7 +34,7 @@ export type DynamicContent<T = DYNAMIC_CONTENT_TYPE> = Extract<
 
 export type Block<T = DYNAMIC_CONTENT_TYPE> = {
   id: string
-  staticContent: string
+  staticContent: JSONContent
   dynamicContent: DynamicContent<T>
 }
 

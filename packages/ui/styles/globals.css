@@ -84,3 +84,81 @@
     @apply text-foreground !important;
   }
 }
+
+.ProseMirror:focus-visible {
+  outline: none;
+}
+
+.ProseMirror p.is-empty::before {
+  @apply text-muted-foreground;
+  opacity: 0.7;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  display: block;
+}
+
+/* code highlight */
+.ProseMirror p code {
+  @apply bg-muted rounded-md;
+  padding: 0.2rem 0.3rem;
+}
+
+.ProseMirror > * + * {
+  margin-top: 0.75em;
+}
+.ProseMirror pre {
+  @apply bg-foreground text-background rounded-md;
+  font-family: "JetBrainsMono", monospace;
+  padding: 0.75rem 1rem;
+}
+.ProseMirror pre code {
+  color: inherit;
+  padding: 0;
+  background: none;
+}
+.ProseMirror pre .hljs-comment,
+.ProseMirror pre .hljs-quote {
+  color: #616161;
+}
+.ProseMirror pre .hljs-variable,
+.ProseMirror pre .hljs-template-variable,
+.ProseMirror pre .hljs-attribute,
+.ProseMirror pre .hljs-tag,
+.ProseMirror pre .hljs-name,
+.ProseMirror pre .hljs-regexp,
+.ProseMirror pre .hljs-link,
+.ProseMirror pre .hljs-name,
+.ProseMirror pre .hljs-selector-id,
+.ProseMirror pre .hljs-selector-class {
+  color: #f98181;
+}
+.ProseMirror pre .hljs-number,
+.ProseMirror pre .hljs-meta,
+.ProseMirror pre .hljs-built_in,
+.ProseMirror pre .hljs-builtin-name,
+.ProseMirror pre .hljs-literal,
+.ProseMirror pre .hljs-type,
+.ProseMirror pre .hljs-params {
+  color: #fbbc88;
+}
+.ProseMirror pre .hljs-string,
+.ProseMirror pre .hljs-symbol,
+.ProseMirror pre .hljs-bullet {
+  color: #b9f18d;
+}
+.ProseMirror pre .hljs-title,
+.ProseMirror pre .hljs-section {
+  color: #faf594;
+}
+.ProseMirror pre .hljs-keyword,
+.ProseMirror pre .hljs-selector-tag {
+  color: #70cff8;
+}
+.ProseMirror pre .hljs-emphasis {
+  font-style: italic;
+}
+.ProseMirror pre .hljs-strong {
+  font-weight: 700;
+}

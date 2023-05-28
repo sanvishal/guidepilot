@@ -1,24 +1,25 @@
 import { useEffect, useRef, useState } from "react"
 import Head from "next/head"
 import { Block, DYNAMIC_CONTENT_TYPE, DynamicContent, GuideEdit } from "@/types"
+import { JSONContent } from "@tiptap/react"
+import { Move } from "lucide-react"
+import { DragDropContext, Draggable, Droppable } from "react-beautiful-dnd"
 
 import { cn } from "@guidepilot/ui/lib/utils"
 import { useDebounce } from "@/lib/hooks/common.hooks"
 import { scrollToElement } from "@/lib/utils"
-import { DynamicImageContent } from "@/components/DynamicImageContent"
 import { Navbar } from "@/components/Navbar"
 import {
   IStaticContentBlockContainer,
   StaticContentBlockContainer,
 } from "@/components/StaticContentBlockContainer"
 import { EditableDynamicImageContent } from "@/components/editables/EditableDynamicImageContent"
-import { EditableStaticContent } from "@/components/editables/EditableStaticContent"
 
 const dummyGuide: GuideEdit = {
   blocks: [
     {
       id: "1",
-      staticContent: "block1",
+      staticContent: {},
       dynamicContent: {
         type: DYNAMIC_CONTENT_TYPE.IMAGE,
         url: "https://comicbookmovie.com/images/articles/banners/198854.jpeg",
@@ -31,7 +32,7 @@ const dummyGuide: GuideEdit = {
     },
     {
       id: "4",
-      staticContent: "block2",
+      staticContent: {},
       dynamicContent: {
         type: DYNAMIC_CONTENT_TYPE.IMAGE,
         url: "https://comicbookmovie.com/images/articles/banners/198854.jpeg",
@@ -44,7 +45,7 @@ const dummyGuide: GuideEdit = {
     },
     {
       id: "2",
-      staticContent: "block3",
+      staticContent: {},
       dynamicContent: {
         type: DYNAMIC_CONTENT_TYPE.IMAGE,
         url: "https://static.wikia.nocookie.net/sonypicturesanimation/images/f/f8/Spider-Man_Across_the_Spider-Verse_poster_4.png",
@@ -57,7 +58,7 @@ const dummyGuide: GuideEdit = {
     },
     {
       id: "1.2",
-      staticContent: "block4",
+      staticContent: {},
       dynamicContent: {
         type: DYNAMIC_CONTENT_TYPE.IMAGE,
         url: "https://static.wikia.nocookie.net/sonypicturesanimation/images/f/f8/Spider-Man_Across_the_Spider-Verse_poster_4.png",
@@ -78,6 +79,11 @@ export default function EditGuide() {
   const dynamicContentCanvasRef = useRef<HTMLDivElement>(null)
   const [selectedBlock, setSelectedBlock] = useState("1")
   const [guide, setGuide] = useState<GuideEdit>(dummyGuide)
+  const [isLoaded, setIsLoaded] = useState(false)
+
+  useEffect(() => {
+    setIsLoaded(true)
+  }, [])
 
   const handleBlockClick: IStaticContentBlockContainer["onClick"] = (
     blockElement
@@ -115,17 +121,28 @@ export default function EditGuide() {
         }),
       }
     })
-
-    const blockToUpdate = guide.blocks.find(
-      (b) => b.id === blockId
-    ) as Block<DYNAMIC_CONTENT_TYPE.IMAGE>
-    blockToUpdate.dynamicContent.zoom = zoom
-    setGuide({ ...guide })
   }
 
   const debouncedImageZoomHandler = useDebounce(
     handleOnImageZoomParamsChange,
     500
+  )
+
+  const debouncedStaticContentUpdateHandler = useDebounce(
+    (updatedContent: JSONContent, blockId: string) => {
+      setGuide((currGuides) => {
+        return {
+          ...currGuides,
+          blocks: currGuides.blocks.map((block) => {
+            if (block.id === blockId) {
+              block.staticContent = updatedContent
+            }
+            return block
+          }),
+        }
+      })
+    },
+    1200
   )
 
   const currentBlock = guide.blocks.find((block) => block.id === selectedBlock)
@@ -143,6 +160,24 @@ export default function EditGuide() {
     }
   }
 
+  const handleBlockReorder = (updatedOrder) => {
+    if (!updatedOrder.destination) {
+      return
+    }
+
+    const result = Array.from(guide.blocks)
+    const [removed] = result.splice(updatedOrder.source.index, 1)
+    result.splice(updatedOrder.destination.index, 0, removed)
+
+    setGuide((g) => {
+      return { ...g, blocks: result }
+    })
+  }
+
+  useEffect(() => {
+    console.log(guide)
+  }, [guide])
+
   return (
     <>
       <Head>
@@ -159,29 +194,75 @@ export default function EditGuide() {
           ref={scrollContainerRef}
           className="scroll-area h-full w-full overflow-x-hidden overflow-y-scroll"
         >
-          <div className="static-content relative w-[40%] p-5">
-            {guide.blocks.map((block, idx) => {
-              return (
-                <div
-                  key={idx}
-                  style={{
-                    marginTop: idx === 0 ? "350px" : 0,
-                    marginBottom:
-                      idx === guide.blocks.length - 1 ? "350px" : "0px",
-                  }}
-                >
-                  <StaticContentBlockContainer
-                    key={idx}
-                    block={block}
-                    isSelected={selectedBlock === block.id}
-                    ref={scrollContainerRef}
-                    onClick={handleBlockClick}
-                    onViewAppear={handleBlockAppearInView}
-                  />
-                </div>
-              )
-            })}
-          </div>
+          {isLoaded && (
+            <DragDropContext onDragEnd={handleBlockReorder}>
+              <Droppable droppableId="static-content-list">
+                {(provided, snapshot) => (
+                  <div
+                    className="static-content relative my-[350px] w-[40%] p-5"
+                    {...provided.droppableProps}
+                    ref={provided.innerRef}
+                  >
+                    {guide.blocks.map((block, idx) => {
+                      return (
+                        <Draggable
+                          key={block.id}
+                          draggableId={block.id}
+                          index={idx}
+                        >
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              style={{
+                                position: "relative",
+                                // marginTop:
+                                //   idx === 0 && !snapshot.isDragging
+                                //     ? "350px"
+                                //     : 0,
+                                // marginBottom:
+                                //   idx === guide.blocks.length - 1 &&
+                                //   !snapshot.isDragging
+                                //     ? "350px"
+                                //     : "0px",
+                                ...provided.draggableProps.style,
+                              }}
+                            >
+                              <div
+                                className="text-background absolute -top-9 left-0 flex h-6 w-full items-center opacity-80"
+                                style={{
+                                  backgroundImage:
+                                    "radial-gradient(hsla(215,16.3%,46.9%,0.5) 13%, transparent 13%), radial-gradient(hsla(215.4,16.3%,46.9%,0.5) 13%, transparent 13%)",
+                                  backgroundRepeat: "repeat",
+                                  backgroundSize: "15px 15px",
+                                }}
+                                {...provided.dragHandleProps}
+                              >
+                                <div className="bg-background flex h-full w-6 items-center">
+                                  <Move className="text-muted-foreground ml-2 h-4 w-4" />
+                                </div>
+                              </div>
+                              <StaticContentBlockContainer
+                                key={idx}
+                                block={block}
+                                isSelected={selectedBlock === block.id}
+                                ref={scrollContainerRef}
+                                onClick={handleBlockClick}
+                                onViewAppear={handleBlockAppearInView}
+                                onUpdateContent={
+                                  debouncedStaticContentUpdateHandler
+                                }
+                              />
+                            </div>
+                          )}
+                        </Draggable>
+                      )
+                    })}
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
+          )}
           <div
             className={cn(
               "dynamic-content absolute top-0 h-full origin-top-left overflow-hidden"

@@ -32,3 +32,12 @@ export const debounce = <F extends (...args: any) => any>(
 
 export const clamp = (num: number, min: number, max: number) =>
   Math.min(Math.max(num, min), max)
+
+export const isUrl = (url: string) => {
+  try {
+    new URL(url)
+    return true
+  } catch (err) {
+    return false
+  }
+}
