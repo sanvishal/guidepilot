@@ -1,12 +1,22 @@
 import { JSONContent } from "@tiptap/react"
 
-export type Guide = {
+type DateTimeInfo = Partial<{
+  updatedAt: string
+  createdAt: string
+}>
+
+export type UnSerializedGuide = {
   id: string
   userId: string
   name: string
-}
+  blocks: string[]
+} & DateTimeInfo
 
-export type GuideWithoutId = Omit<Guide, "id">
+export type UnserializedGuideWithoutId = Omit<UnSerializedGuide, "id">
+
+export type Guide = Omit<UnSerializedGuide, "blocks"> & {
+  blocks: Block[]
+}
 
 export enum DYNAMIC_CONTENT_TYPE {
   IMAGE = "IMAGE",
@@ -36,8 +46,4 @@ export type Block<T = DYNAMIC_CONTENT_TYPE> = {
   id: string
   staticContent: JSONContent
   dynamicContent: DynamicContent<T>
-}
-
-export type GuideEdit = {
-  blocks: Block[]
 }

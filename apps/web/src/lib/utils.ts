@@ -10,10 +10,17 @@ export const scrollToElement = (
   scrollContainer: HTMLDivElement,
   offsetTop: number
 ) => {
-  scrollContainer.scrollTo({
-    behavior: "smooth",
-    top: element.offsetTop - offsetTop,
-  })
+  if (element && scrollContainer) {
+    const scrollRect = scrollContainer?.getBoundingClientRect()
+    const elementRect = element?.getBoundingClientRect()
+    const scrollTop =
+      elementRect.top - scrollRect.top + scrollContainer.scrollTop
+
+    scrollContainer.scrollTo({
+      behavior: "smooth",
+      top: scrollTop - offsetTop,
+    })
+  }
 }
 
 export const debounce = <F extends (...args: any) => any>(

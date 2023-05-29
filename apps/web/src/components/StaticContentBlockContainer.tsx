@@ -55,17 +55,18 @@ export const StaticContentBlockContainer = forwardRef<
 
   const handleOnFocus = useCallback((state: boolean) => {
     setIsEditorFocused(state)
+    props.onClick(contentRef.current, props.block.id)
   }, [])
 
   return (
     <div
-      ref={contentRef}
       className={cn(
-        "group relative mb-20 min-h-[150px] rounded-md border p-4",
-        props.isSelected ? "opacity-100" : "opacity-30",
-        isEditorFocused ? "border-foreground border-dashed" : "border-border"
+        "group relative mb-20 min-h-[150px] w-full rounded-md border p-4",
+        props.isSelected ? "border-foreground opacity-100" : "opacity-30",
+        isEditorFocused ? "border-dashed" : ""
       )}
       onClick={handleBlockClick}
+      ref={contentRef}
     >
       <EditableStaticContent
         block={props.block}

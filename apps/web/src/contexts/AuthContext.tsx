@@ -62,7 +62,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     if (
       !user &&
-      !["/login", "/signup", "/", "/edit/[id]"].includes(router.pathname) &&
+      !["/login", "/signup", "/"].includes(router.pathname) &&
       !isLoading
     ) {
       handleSession()

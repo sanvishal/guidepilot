@@ -34,6 +34,7 @@ module.exports = {
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
+          background: "hsl(var(--destructive-background))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
@@ -77,6 +78,13 @@ module.exports = {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+      },
+      typography: {
+        DEFAULT: {
+          css: {
+            maxWidth: "unset",
+          },
+        },
       },
     },
   },

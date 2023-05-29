@@ -28,6 +28,7 @@
     --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
 
+    --destructive-background: 0 78.57% 94.51%;
     --destructive: 0 100% 50%;
     --destructive-foreground: 210 40% 98%;
 
@@ -61,6 +62,7 @@
     --accent: 216 34% 17%;
     --accent-foreground: 210 40% 98%;
 
+    --destructive-background: 0 78.57% 94.51%;
     --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
 
@@ -161,4 +163,12 @@
 }
 .ProseMirror pre .hljs-strong {
   font-weight: 700;
+}
+
+#nprogress .bar {
+  @apply bg-foreground !important;
+}
+
+#nprogress .spinner-icon {
+  @apply border-t-foreground border-l-foreground !important;
 }

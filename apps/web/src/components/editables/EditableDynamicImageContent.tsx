@@ -146,6 +146,7 @@ export const EditableDynamicImageContent = forwardRef<
     return (
       <>
         <img
+          className="rounded-md"
           src={content.url}
           key={content.url}
           ref={imageRef}

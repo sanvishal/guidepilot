@@ -159,8 +159,9 @@ export const EditableStaticContent = (props: IEditableStaticContent) => {
         defaultLanguage: "javascript",
       }),
     ],
-    content: `<pre><code class="language-javascript">const a = 2;</code></pre>`,
-
+    content: props.block.staticContent,
+    onCreate: ({ editor }) =>
+      editor.commands.setContent(props.block.staticContent),
     onBlur: () => props.onFocus(false),
     onFocus: () => props.onFocus(true),
     onUpdate: ({ editor }) => {
