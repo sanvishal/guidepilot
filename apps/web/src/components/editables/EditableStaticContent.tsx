@@ -172,6 +172,7 @@ export const EditableStaticContent = (props: IEditableStaticContent) => {
   useEffect(() => {
     if (props.isEditable) {
       editor?.setEditable(true)
+      editor?.commands?.focus()
     }
   }, [props.isEditable, editor])
 

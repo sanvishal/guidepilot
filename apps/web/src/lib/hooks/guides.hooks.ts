@@ -5,8 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "react-query"
 
 import { useToast } from "@guidepilot/ui/lib/useToast"
 import { useAuth } from "@/contexts/AuthContext"
-import { COLLECTION, db, dbConfig } from "../appwrite"
-import { grantReadWritePermission } from "../utils"
+import { BUCKET, COLLECTION, db, dbConfig, storage } from "../appwrite"
+import { grantReadWritePermission, grantWritePermission } from "../utils"
 
 export const useListGuidesQuery = () => {
   const key = ["guides"]
@@ -111,11 +111,28 @@ export const useGetGuideByIdQuery = ({
   )
 }
 
-export const useSaveGuideMutation = (guide: Guide) => {
-  return useMutation(() =>
-    db.updateDocument(dbConfig.dbId, COLLECTION.GUIDES, guide.id, {
-      blocks: guide.blocks.map((b) => JSON.stringify(b)),
-    })
+export const useSaveGuideMutation = ({
+  onMutate,
+}: {
+  onMutate: (guide: Guide) => any
+}) => {
+  const { toast } = useToast()
+
+  return useMutation<Models.Document, AppwriteException, { guide: Guide }>(
+    ({ guide }) =>
+      db.updateDocument(dbConfig.dbId, COLLECTION.GUIDES, guide.id, {
+        blocks: guide.blocks.map((b) => JSON.stringify(b)),
+      }),
+    {
+      onMutate: ({ guide }) => onMutate(guide),
+      onError: (error) => {
+        toast({
+          variant: "destructive",
+          title: "An error occured, your changes are not saved!",
+          description: error?.message || "",
+        })
+      },
+    }
   )
 }
 
@@ -152,5 +169,68 @@ export const useUpdateGuideName = ({ onSuccess }) => {
 export const useDeleteGuideMutation = (id: string) => {
   return useMutation(() =>
     db.deleteDocument(dbConfig.dbId, COLLECTION.GUIDES, id)
+  )
+}
+
+export const useUploadFileMutation = ({
+  onSuccess,
+}: {
+  onSuccess: (file: Models.File, blockId: string) => any
+}) => {
+  const { user } = useAuth()
+  const { toast } = useToast()
+
+  return useMutation<
+    unknown,
+    AppwriteException,
+    { guideId: string; blockId: string; file: File }
+  >(
+    ({ guideId, blockId, file }) =>
+      storage.createFile(
+        BUCKET.IMAGES,
+        blockId,
+        file,
+        grantReadWritePermission(user?.$id)
+      ),
+    {
+      onSettled(data: Models.File, error, variables) {
+        if (!error) {
+          onSuccess(data, variables.blockId)
+        }
+      },
+      onError: (err) => {
+        toast({
+          variant: "destructive",
+          title: "An error occured!",
+          description: err?.message || "",
+        })
+      },
+    }
+  )
+}
+
+export const useDeleteFileMutation = ({
+  onSuccess,
+}: {
+  onSuccess: (blockId: string) => any
+}) => {
+  const { toast } = useToast()
+
+  return useMutation<unknown, AppwriteException, { blockId: string }>(
+    ({ blockId }) => storage.deleteFile(BUCKET.IMAGES, blockId),
+    {
+      onSettled(_, error, variables) {
+        if (!error) {
+          onSuccess(variables.blockId)
+        }
+      },
+      onError: (err) => {
+        toast({
+          variant: "destructive",
+          title: "An error occured!",
+          description: err?.message || "",
+        })
+      },
+    }
   )
 }

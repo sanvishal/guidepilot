@@ -3,22 +3,35 @@ import Head from "next/head"
 import { useRouter } from "next/router"
 import { Block, DYNAMIC_CONTENT_TYPE, DynamicContent, Guide } from "@/types"
 import { JSONContent } from "@tiptap/react"
-import { Loader, MousePointerClick, Move } from "lucide-react"
+import { Loader, MousePointerClick, Move, PlusCircle } from "lucide-react"
+import { nanoid } from "nanoid"
 import { DragDropContext, Draggable, Droppable } from "react-beautiful-dnd"
+import { useDropzone } from "react-dropzone"
 
+import { useToast } from "@guidepilot/ui/lib/useToast"
 import { cn } from "@guidepilot/ui/lib/utils"
 import { useDebounce, useOnClickOutside } from "@/lib/hooks/common.hooks"
 import {
+  useDeleteFileMutation,
   useGetGuideByIdQuery,
+  useSaveGuideMutation,
   useUpdateGuideName,
 } from "@/lib/hooks/guides.hooks"
-import { scrollToElement } from "@/lib/utils"
+import { isFileUsedInAnyOtherBlocks, scrollToElement } from "@/lib/utils"
+import { LogoInverted } from "@/components/LogoInverted"
 import { Navbar } from "@/components/Navbar"
 import {
   IStaticContentBlockContainer,
   StaticContentBlockContainer,
 } from "@/components/StaticContentBlockContainer"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/Tooltip"
 import { EditableDynamicImageContent } from "@/components/editables/EditableDynamicImageContent"
+import { EditablePlaceholder } from "@/components/editables/EditablePlaceholder"
 
 // const dummyGuide: Guide = {
 //   blocks: [
@@ -90,6 +103,7 @@ export default function EditGuide() {
   const [selectedBlock, setSelectedBlock] = useState("1")
   const [guide, setGuide] = useState<Guide>(null)
   const router = useRouter()
+  const { toast } = useToast()
 
   const { isFetching: isGuideFetching, status: guideFetchStatus } =
     useGetGuideByIdQuery({
@@ -105,6 +119,31 @@ export default function EditGuide() {
       setGuide({ ...guide, name: guideName.value })
     },
   })
+
+  const { mutate: saveGuideMutation } = useSaveGuideMutation({
+    onMutate: () => {},
+  })
+
+  const { mutateAsync: deleteFileMutation } = useDeleteFileMutation({
+    onSuccess: () => {},
+  })
+
+  const handleBlockDeleteConfirm = async (blockId: string) => {
+    const idxToDelete = guide.blocks.findIndex((block) => block.id === blockId)
+    if (idxToDelete !== -1) {
+      const isFileInUse = isFileUsedInAnyOtherBlocks(blockId, guide.blocks)
+      if (!isFileInUse) {
+        switch (guide.blocks[idxToDelete].dynamicContent.type) {
+          case DYNAMIC_CONTENT_TYPE.IMAGE:
+            await deleteFileMutation({ blockId })
+        }
+      }
+      guide.blocks.splice(idxToDelete, 1)
+    }
+    const updatedGuide = { ...guide }
+    setGuide(updatedGuide)
+    saveGuideMutation({ guide: updatedGuide })
+  }
 
   const handleBlockClick: IStaticContentBlockContainer["onClick"] = (
     blockElement
@@ -155,20 +194,15 @@ export default function EditGuide() {
     blockId: string,
     zoom: DynamicContent<DYNAMIC_CONTENT_TYPE.IMAGE>["zoom"]
   ) => {
-    setGuide((currGuides) => {
-      return {
-        ...currGuides,
-        blocks: currGuides.blocks.map((block) => {
-          if (
-            block.id === blockId &&
-            block.dynamicContent.type === DYNAMIC_CONTENT_TYPE.IMAGE
-          ) {
-            block.dynamicContent.zoom = zoom
-          }
-          return block
-        }),
-      }
-    })
+    console.log(blockId, zoom)
+    const idx = guide.blocks.findIndex((b) => b.id === blockId)
+    if (idx !== -1) {
+      // @ts-ignore
+      guide.blocks[idx].dynamicContent.zoom = zoom
+      const updatedGuide = { ...guide }
+      setGuide(updatedGuide)
+      saveGuideMutation({ guide: updatedGuide })
+    }
   }
 
   const debouncedImageZoomHandler = useDebounce(
@@ -184,7 +218,7 @@ export default function EditGuide() {
         JSON.stringify(updatedContent)
       ) {
         setGuide((currGuides) => {
-          return {
+          const updatedGuide = {
             ...currGuides,
             blocks: currGuides.blocks.map((block) => {
               if (block.id === blockId) {
@@ -193,11 +227,104 @@ export default function EditGuide() {
               return block
             }),
           }
+          saveGuideMutation({ guide: updatedGuide })
+          return updatedGuide
         })
       }
     },
     200
   )
+
+  const handleAddBlock = ({
+    addAfterIdx,
+    addBeforeIdx,
+  }: {
+    addAfterIdx?: number
+    addBeforeIdx?: number
+  }) => {
+    const newBlock: Block = {
+      id: nanoid(32),
+      staticContent: {},
+      dynamicContent: {
+        type: DYNAMIC_CONTENT_TYPE.PLACEHOLDER,
+      },
+    }
+
+    if (addAfterIdx !== undefined) {
+      guide.blocks.splice(addAfterIdx + 1, 0, newBlock)
+    } else if (addBeforeIdx !== undefined) {
+      guide.blocks.splice(addBeforeIdx, 0, newBlock)
+    } else {
+      guide.blocks.push(newBlock)
+    }
+
+    const updatedGuide = { ...guide }
+    setGuide(updatedGuide)
+    saveGuideMutation({ guide: updatedGuide })
+  }
+
+  const handleFileUpload = (url: string, blockId: string) => {
+    const idx = guide.blocks.findIndex((b) => b.id === blockId)
+    if (idx !== -1 && guide.blocks[idx]) {
+      guide.blocks[idx].dynamicContent = {
+        type: DYNAMIC_CONTENT_TYPE.IMAGE,
+        url,
+        zoom: {
+          x: 0,
+          y: 0,
+          amount: 1,
+        },
+      }
+      const updatedGuide = { ...guide }
+      setGuide(updatedGuide)
+      saveGuideMutation({ guide: updatedGuide })
+    }
+  }
+
+  const handleFileDelete = async (blockId: string) => {
+    const idx = guide.blocks.findIndex((b) => b.id === blockId)
+    if (idx !== -1 && guide.blocks[idx]) {
+      const isFileInUse = isFileUsedInAnyOtherBlocks(blockId, guide.blocks)
+      if (!isFileInUse) {
+        switch (guide.blocks[idx].dynamicContent.type) {
+          case DYNAMIC_CONTENT_TYPE.IMAGE:
+            await deleteFileMutation({ blockId })
+        }
+      }
+      guide.blocks[idx].dynamicContent = {
+        type: DYNAMIC_CONTENT_TYPE.PLACEHOLDER,
+      }
+      const updatedGuide = { ...guide }
+      setGuide(updatedGuide)
+      saveGuideMutation({ guide: updatedGuide })
+    }
+  }
+
+  const handleCopyPreviousBlock = (blockId: string) => {
+    const idx = guide.blocks.findIndex((b) => b.id === blockId)
+    if (idx !== -1 && guide.blocks[idx] && guide.blocks[idx - 1]) {
+      if (
+        guide.blocks[idx - 1].dynamicContent.type ===
+        DYNAMIC_CONTENT_TYPE.PLACEHOLDER
+      ) {
+        toast({
+          title: "Previous block does not have content",
+        })
+        return
+      }
+      guide.blocks[idx].dynamicContent = guide.blocks[idx - 1].dynamicContent
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Error occured trying to copy block",
+      })
+      return
+    }
+
+    const updatedGuide = { ...guide }
+    setGuide(updatedGuide)
+    saveGuideMutation({ guide: updatedGuide })
+  }
 
   const currentBlock = guide?.blocks?.find(
     (block) => block.id === selectedBlock
@@ -205,12 +332,28 @@ export default function EditGuide() {
 
   const renderDynamicContent = () => {
     switch (currentBlock?.dynamicContent.type) {
+      case DYNAMIC_CONTENT_TYPE.PLACEHOLDER:
+        const isFirst =
+          guide.blocks.findIndex((b) => b.id === currentBlock.id) === 0
+        return (
+          <EditablePlaceholder
+            key={currentBlock?.id}
+            block={currentBlock}
+            guideId={guide?.id}
+            onUploadFile={handleFileUpload}
+            shouldShowCopyPreviousBlock={!isFirst}
+            onCopyPreviousBlockClick={handleCopyPreviousBlock}
+          />
+        )
       case DYNAMIC_CONTENT_TYPE.IMAGE:
         return (
           <EditableDynamicImageContent
+            guideId={guide?.id}
             block={currentBlock as Block<DYNAMIC_CONTENT_TYPE.IMAGE>}
             ref={dynamicContentCanvasRef}
             onZoomParamsChange={debouncedImageZoomHandler}
+            onReplaceImage={handleFileUpload}
+            onDeleteImage={handleFileDelete}
           />
         )
     }
@@ -225,9 +368,9 @@ export default function EditGuide() {
     const [removed] = result.splice(updatedOrder.source.index, 1)
     result.splice(updatedOrder.destination.index, 0, removed)
 
-    setGuide((g) => {
-      return { ...g, blocks: result }
-    })
+    const updatedGuide: Guide = { ...guide, blocks: result }
+    setGuide(updatedGuide)
+    saveGuideMutation({ guide: updatedGuide })
   }
 
   return (
@@ -275,10 +418,10 @@ export default function EditGuide() {
                       >
                         <div
                           className={cn(
-                            "text-muted-foreground absolute -bottom-6 right-0 flex items-center text-sm transition-opacity",
+                            "text-muted-foreground pointer-events-none absolute -bottom-6 right-0 flex items-center font-sans text-sm font-normal transition-opacity",
                             guideName.isFocused
                               ? "opacity-0"
-                              : "opacity-0 group-hover:opacity-100"
+                              : "opacity-0 group-hover:opacity-70"
                           )}
                         >
                           <MousePointerClick className="mr-1 h-4 w-4 stroke-[1.5]" />
@@ -294,61 +437,111 @@ export default function EditGuide() {
                           />
                         )}
                       </div>
-                      {guide.blocks.map((block, idx) => {
-                        return (
-                          <Draggable
-                            key={block.id}
-                            draggableId={block.id}
-                            index={idx}
-                          >
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                style={{
-                                  position: "relative",
-                                  // marginTop:
-                                  //   idx === 0 && !snapshot.isDragging
-                                  //     ? "350px"
-                                  //     : 0,
-                                  // marginBottom:
-                                  //   idx === guide.blocks.length - 1 &&
-                                  //   !snapshot.isDragging
-                                  //     ? "350px"
-                                  //     : "0px",
-                                  ...provided.draggableProps.style,
-                                }}
-                              >
+                      {guide.blocks.length === 0 ? (
+                        <button
+                          className="*:unset hover:border-foreground flex w-full rounded-md border p-1 shadow-sm"
+                          onClick={() => handleAddBlock({})}
+                        >
+                          <div className="bg-muted text-muted-foreground relative h-full w-full flex-col items-center justify-center overflow-hidden rounded-sm p-3 py-4">
+                            Get Started!
+                            <div className="text-foreground mt-1 flex items-center justify-center">
+                              <PlusCircle className="mr-1 h-5 w-5" /> Add Block
+                            </div>
+                            <div className="pointer-events-none absolute bottom-2 right-10 -rotate-6 scale-[1.6] opacity-[0.04]">
+                              <LogoInverted />
+                            </div>
+                          </div>
+                        </button>
+                      ) : (
+                        guide.blocks.map((block, idx) => {
+                          return (
+                            <Draggable
+                              key={block.id}
+                              draggableId={block.id}
+                              index={idx}
+                            >
+                              {(provided, snapshot) => (
                                 <div
-                                  className="text-background absolute -top-9 left-0 flex h-6 w-full items-center opacity-80"
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
                                   style={{
-                                    backgroundImage:
-                                      "radial-gradient(hsla(215,16.3%,46.9%,0.5) 13%, transparent 13%), radial-gradient(hsla(215.4,16.3%,46.9%,0.5) 13%, transparent 13%)",
-                                    backgroundRepeat: "repeat",
-                                    backgroundSize: "15px 15px",
+                                    position: "relative",
+                                    ...provided.draggableProps.style,
                                   }}
-                                  {...provided.dragHandleProps}
+                                  className="group"
                                 >
-                                  <div className="bg-background flex h-full w-6 items-center">
-                                    <Move className="text-muted-foreground ml-2 h-4 w-4" />
+                                  <div
+                                    className="text-background absolute -top-9 left-0 flex h-4 w-full items-center justify-center opacity-80"
+                                    style={{
+                                      backgroundImage:
+                                        "radial-gradient(hsla(215,16.3%,46.9%,0.5) 13%, transparent 13%), radial-gradient(hsla(215.4,16.3%,46.9%,0.5) 13%, transparent 13%)",
+                                      backgroundRepeat: "repeat",
+                                      backgroundSize: "10px 10px",
+                                    }}
+                                    {...provided.dragHandleProps}
+                                  >
+                                    <div className="bg-background mt-1 flex h-full items-center justify-center px-2">
+                                      <Move className="text-muted-foreground h-4 w-4" />
+                                    </div>
                                   </div>
+                                  <TooltipProvider delayDuration={500}>
+                                    {idx === 0 && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <button
+                                            className="bg-muted absolute -top-20 flex w-full flex-row items-center justify-center rounded-md px-2 py-1 opacity-5 transition-opacity hover:!opacity-100 group-hover:opacity-20"
+                                            onClick={() =>
+                                              handleAddBlock({
+                                                addBeforeIdx: idx,
+                                              })
+                                            }
+                                          >
+                                            <div className="border-foreground h-[1px] flex-grow border border-dashed bg-transparent" />
+                                            <PlusCircle className="text-foreground mx-1 h-4 w-4" />
+                                            <div className="border-foreground h-[1px] flex-grow border border-dashed bg-transparent" />
+                                          </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          Insert block
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    )}
+                                    <StaticContentBlockContainer
+                                      key={idx}
+                                      block={block}
+                                      isSelected={selectedBlock === block.id}
+                                      ref={scrollContainerRef}
+                                      onClick={handleBlockClick}
+                                      onViewAppear={handleBlockAppearInView}
+                                      onUpdateContent={
+                                        debouncedStaticContentUpdateHandler
+                                      }
+                                      onDeleteConfirm={handleBlockDeleteConfirm}
+                                    />
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          className="bg-muted absolute -bottom-14 flex w-full flex-row items-center justify-center rounded-md px-2 py-1 opacity-5 transition-opacity hover:!opacity-100 group-hover:opacity-20"
+                                          onClick={() => {
+                                            handleAddBlock({ addAfterIdx: idx })
+                                          }}
+                                        >
+                                          <div className="border-foreground h-[1px] flex-grow border border-dashed bg-transparent" />
+                                          <PlusCircle className="text-foreground mx-1 h-4 w-4" />
+                                          <div className="border-foreground h-[1px] flex-grow border border-dashed bg-transparent" />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="bottom">
+                                        Insert block
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                 </div>
-                                <StaticContentBlockContainer
-                                  key={idx}
-                                  block={block}
-                                  isSelected={selectedBlock === block.id}
-                                  ref={scrollContainerRef}
-                                  onClick={handleBlockClick}
-                                  onViewAppear={handleBlockAppearInView}
-                                  onUpdateContent={
-                                    debouncedStaticContentUpdateHandler
-                                  }
-                                />
-                              </div>
-                            )}
-                          </Draggable>
-                        )
-                      })}
+                              )}
+                            </Draggable>
+                          )
+                        })
+                      )}
                     </div>
                   )}
                 </Droppable>

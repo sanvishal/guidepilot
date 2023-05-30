@@ -21,6 +21,7 @@ export type Guide = Omit<UnSerializedGuide, "blocks"> & {
 export enum DYNAMIC_CONTENT_TYPE {
   IMAGE = "IMAGE",
   CODE = "CODE",
+  PLACEHOLDER = "PLACEHOLDER",
 }
 
 export type ContentZoom = {
@@ -36,6 +37,9 @@ type _DynamicContent =
       zoom: ContentZoom
     }
   | { type: DYNAMIC_CONTENT_TYPE.CODE; code: string }
+  | {
+      type: DYNAMIC_CONTENT_TYPE.PLACEHOLDER
+    }
 
 export type DynamicContent<T = DYNAMIC_CONTENT_TYPE> = Extract<
   _DynamicContent,

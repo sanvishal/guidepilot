@@ -1,18 +1,45 @@
-import { RefObject, forwardRef, useEffect, useRef, useState } from "react"
+import {
+  RefObject,
+  forwardRef,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react"
 import { Block, DYNAMIC_CONTENT_TYPE, DynamicContent } from "@/types"
 import { PanInfo, motion, useMotionValue } from "framer-motion"
-import { Move, ZoomIn } from "lucide-react"
+import { Loader, Move, Trash, Upload, ZoomIn } from "lucide-react"
+import { FileRejection, useDropzone } from "react-dropzone"
 
-import { Label, Slider } from "@guidepilot/ui"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+  Button,
+  Label,
+  Separator,
+  Slider,
+} from "@guidepilot/ui"
+import { useToast } from "@guidepilot/ui/lib/useToast"
 import { cn } from "@guidepilot/ui/lib/utils"
-import { clamp } from "@/lib/utils"
+import { BUCKET, storage } from "@/lib/appwrite"
+import {
+  useDeleteFileMutation,
+  useUploadFileMutation,
+} from "@/lib/hooks/guides.hooks"
+import { clamp, fileUtils } from "@/lib/utils"
+import { useAuth } from "@/contexts/AuthContext"
 
 interface IDynamicImageContent {
+  guideId: string
   block: Block<DYNAMIC_CONTENT_TYPE.IMAGE>
   onZoomParamsChange: (
     blockId: string,
     zoom: DynamicContent<DYNAMIC_CONTENT_TYPE.IMAGE>["zoom"]
   ) => void
+  onReplaceImage: (url: string, id: string) => void
+  onDeleteImage: (id: string) => void
 }
 
 const DRAG_HANDLE_SIZE = 140
@@ -53,6 +80,8 @@ export const EditableDynamicImageContent = forwardRef<
   dynamicCanvasRef: RefObject<HTMLDivElement>
 ) {
   const imageRef = useRef<HTMLImageElement>(null)
+  const { toast } = useToast()
+  const { user } = useAuth()
   const [isDragging, setIsDragging] = useState(false)
   const [currentZoom, setCurrentZoom] = useState<
     DynamicContent<DYNAMIC_CONTENT_TYPE.IMAGE>["zoom"]
@@ -64,6 +93,57 @@ export const EditableDynamicImageContent = forwardRef<
   const [currentImageDimensions, setCurrentImageDimensions] = useState(null)
   const dragHandleX = useMotionValue(0)
   const dragHandleY = useMotionValue(0)
+
+  const { mutate: uploadFileMutation, isLoading: isUploadingFile } =
+    useUploadFileMutation({
+      onSuccess: (file, blockId) => {
+        props.onReplaceImage(
+          storage.getFileView(BUCKET.IMAGES, file.$id).href +
+            "&t=" +
+            new Date().getTime(),
+          blockId
+        )
+      },
+    })
+
+  const onDrop = useCallback(
+    (acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
+      rejectedFiles.forEach((file) => {
+        file.errors.forEach((err) => {
+          const errorMessage = fileUtils.getFileErrorMessage(err)
+          toast({
+            variant: "destructive",
+            title: errorMessage.title,
+            description: errorMessage.description,
+          })
+        })
+      })
+
+      if (acceptedFiles.length) {
+        const acceptedFile = acceptedFiles[0]
+        const renamedFile = fileUtils.getRenamedFile(
+          acceptedFile,
+          user?.$id,
+          props.guideId,
+          props.block.id
+        )
+        uploadFileMutation({
+          guideId: props.guideId,
+          blockId: props.block.id,
+          file: renamedFile,
+        })
+      }
+    },
+    []
+  )
+
+  const { getRootProps, getInputProps, isDragReject, isDragAccept } =
+    useDropzone({
+      onDrop,
+      multiple: false,
+      accept: fileUtils.acceptFormats,
+      maxSize: fileUtils.maxSize,
+    })
 
   const setDragHandlerPosition = (imageDimensions) => {
     const absX =
@@ -151,7 +231,6 @@ export const EditableDynamicImageContent = forwardRef<
           key={content.url}
           ref={imageRef}
           onLoad={handleImageLoad}
-          // onLoad={handleImageLoad}
           // className="object-cover"
           style={{
             maxHeight: "100%",
@@ -209,8 +288,8 @@ export const EditableDynamicImageContent = forwardRef<
             isDragging ? "translate-y-40" : "translate-y-0"
           )}
         >
-          <div className="bg-background h-full rounded-lg border p-6 shadow-md">
-            <div className="w-52 space-y-3">
+          <div className="bg-background h-full rounded-lg border p-6 pt-5 shadow-md ">
+            <div className="w-64 space-y-3">
               <>
                 <Label htmlFor="zoom-amount" className="flex items-center">
                   <ZoomIn className="mr-1 h-4 w-4" />
@@ -226,6 +305,46 @@ export const EditableDynamicImageContent = forwardRef<
                 />
               </>
             </div>
+            <Accordion type="single" collapsible className="mt-4">
+              <AccordionItem value="options">
+                <AccordionTrigger className="py-2">
+                  Replace/Delete Content
+                </AccordionTrigger>
+                <AccordionContent className="w-64 text-center">
+                  <div
+                    className={cn(
+                      "mx-auto h-20 w-full rounded-md border border-dashed bg-transparent p-0.5 shadow-sm",
+                      isDragAccept
+                        ? "border-foreground"
+                        : "hover:border-foreground",
+                      isDragReject ? "border-destructive" : ""
+                    )}
+                    {...getRootProps()}
+                  >
+                    <input {...getInputProps()} />
+                    <div className="bg-muted flex h-full w-full flex-col items-center justify-center rounded-sm">
+                      <div className="text-muted-foreground flex flex-col items-center justify-center rounded-sm">
+                        {isUploadingFile ? (
+                          <Loader className="mb-1 h-5 w-5 animate-spin" />
+                        ) : (
+                          <Upload className="mb-1 h-5 w-5" />
+                        )}
+                        Replace content
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground my-1">or</p>
+                  <Button
+                    variant="destructive"
+                    className="mt-2 w-full"
+                    onClick={() => props.onDeleteImage(props.block.id)}
+                  >
+                    Delete Content
+                    <Trash className="ml-1 h-4 w-4" />
+                  </Button>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
         </div>
       </>

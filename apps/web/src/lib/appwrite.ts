@@ -1,4 +1,4 @@
-import { Account, Client, Databases } from "appwrite"
+import { Account, Client, Databases, Storage } from "appwrite"
 
 const client = new Client()
 
@@ -18,11 +18,16 @@ enum COLLECTION {
   GUIDES = "guides",
 }
 
+enum BUCKET {
+  IMAGES = "guidepilot-images",
+}
+
 client
   .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT)
   .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT)
 
 const account = new Account(client)
 const db = new Databases(client)
+const storage = new Storage(client)
 
-export { client, account, db, dbConfig, COLLECTION }
+export { client, account, db, dbConfig, COLLECTION, storage, BUCKET }
